@@ -21,16 +21,16 @@ def verificar_contrasena():
     contrasena = st.text_input("Contraseña", type="password")
     
     if st.button("Ingresar"):
-        # 1. Agrupamos los usuarios y contraseñas del .env en un diccionario
         usuarios_validos = {
             os.getenv("USUARIO_1"): os.getenv("PASSWORD_1"),
             os.getenv("USUARIO_2"): os.getenv("PASSWORD_2"),
             os.getenv("USUARIO_3"): os.getenv("PASSWORD_3")
         }
         
-        # 2. Verificamos si el usuario escrito existe en el diccionario Y si su clave coincide
         if usuario in usuarios_validos and usuarios_validos[usuario] == contrasena:
             st.session_state['autenticado'] = True
+            # NUEVO: Guardamos el nombre del usuario para filtrar la base de datos
+            st.session_state['usuario_actual'] = usuario 
             st.rerun() 
         else:
             st.error("❌ Usuario o contraseña incorrectos")

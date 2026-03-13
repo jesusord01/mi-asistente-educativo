@@ -4,23 +4,26 @@ import os
 import sqlite3
 from datetime import datetime
 from dotenv import load_dotenv
+from fpdf import FPDF
 
 from curriculo_5to import matematica, religion, comunicacion
-from seguridad import verificar_contrasena # <-- IMPORTAMOS TU NUEVO ARCHIVO
+from seguridad import verificar_contrasena
 
 # =====================================================================
 # PORTERO LÓGICO (LOGIN)
 # =====================================================================
-# Si la contraseña no es correcta, detenemos toda la aplicación aquí mismo
 if not verificar_contrasena():
     st.stop() 
 
-# Botón opcional para cerrar sesión (lo ponemos arriba de todo)
+# Extraemos el nombre del usuario logueado para usarlo en toda la base de datos
+usuario_actual = st.session_state.get('usuario_actual', 'desconocido')
+
 with st.sidebar:
+    st.markdown(f"👤 **Usuario activo:** `{usuario_actual}`")
     if st.button("🚪 Cerrar Sesión"):
         st.session_state['autenticado'] = False
         st.rerun()
-
+    st.divider()
 
 # =====================================================================
 # CONFIGURACIÓN INICIAL Y BASE DE DATOS
@@ -32,81 +35,98 @@ modelo = genai.GenerativeModel('gemini-2.5-flash')
 def inicializar_bd():
     conn = sqlite3.connect('colegio_feyalegria.db')
     c = conn.cursor()
+    # NUEVO: Agregamos la columna 'usuario' a las sesiones
     c.execute('''
         CREATE TABLE IF NOT EXISTS sesiones (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            usuario TEXT,
             fecha TEXT, grado TEXT, curso TEXT, tema TEXT, contenido TEXT
         )
     ''')
+    # NUEVO: La clave principal ahora es el 'usuario', permitiendo 1 proyecto por profesor
     c.execute('''
         CREATE TABLE IF NOT EXISTS proyecto_activo (
-            id INTEGER PRIMARY KEY CHECK (id = 1),
+            usuario TEXT PRIMARY KEY,
             titulo TEXT, dificultad TEXT, actividades TEXT, barrio TEXT, interes TEXT
         )
     ''')
     conn.commit()
     conn.close()
 
-# --- Funciones para el Historial de Sesiones ---
-def guardar_sesion_bd(grado, curso, tema, contenido):
+# --- Funciones para el Historial de Sesiones (FILTRADO POR USUARIO) ---
+def guardar_sesion_bd(usuario, grado, curso, tema, contenido):
     conn = sqlite3.connect('colegio_feyalegria.db')
     c = conn.cursor()
     fecha_actual = datetime.now().strftime("%Y-%m-%d %H:%M")
-    c.execute('INSERT INTO sesiones (fecha, grado, curso, tema, contenido) VALUES (?, ?, ?, ?, ?)',
-              (fecha_actual, grado, curso, tema, contenido))
+    c.execute('INSERT INTO sesiones (usuario, fecha, grado, curso, tema, contenido) VALUES (?, ?, ?, ?, ?, ?)',
+              (usuario, fecha_actual, grado, curso, tema, contenido))
     conn.commit()
     conn.close()
 
-def obtener_historial():
+def obtener_historial(usuario):
     conn = sqlite3.connect('colegio_feyalegria.db')
     c = conn.cursor()
-    # ATENCIÓN: Ahora también pedimos el 'id' a la base de datos
-    c.execute('SELECT id, fecha, grado, curso, tema, contenido FROM sesiones ORDER BY id DESC')
+    c.execute('SELECT id, fecha, grado, curso, tema, contenido FROM sesiones WHERE usuario = ? ORDER BY id DESC', (usuario,))
     datos = c.fetchall()
     conn.close()
     return datos
 
-def borrar_historial_bd():
+def borrar_historial_bd(usuario):
     conn = sqlite3.connect('colegio_feyalegria.db')
     c = conn.cursor()
-    c.execute('DELETE FROM sesiones')
+    c.execute('DELETE FROM sesiones WHERE usuario = ?', (usuario,))
     conn.commit()
     conn.close()
 
-# NUEVA FUNCIÓN: Borrar una sesión específica usando su ID
-def borrar_sesion_bd(id_sesion):
+def borrar_sesion_bd(id_sesion, usuario):
     conn = sqlite3.connect('colegio_feyalegria.db')
     c = conn.cursor()
-    c.execute('DELETE FROM sesiones WHERE id = ?', (id_sesion,))
+    c.execute('DELETE FROM sesiones WHERE id = ? AND usuario = ?', (id_sesion, usuario))
     conn.commit()
     conn.close()
 
-# --- Funciones para el Proyecto Bimestral ---
-def obtener_proyecto_activo():
+# --- Funciones para el Proyecto Bimestral (FILTRADO POR USUARIO) ---
+def obtener_proyecto_activo(usuario):
     conn = sqlite3.connect('colegio_feyalegria.db')
     c = conn.cursor()
-    c.execute('SELECT titulo, dificultad, actividades, barrio, interes FROM proyecto_activo WHERE id = 1')
+    c.execute('SELECT titulo, dificultad, actividades, barrio, interes FROM proyecto_activo WHERE usuario = ?', (usuario,))
     datos = c.fetchone() 
     conn.close()
     return datos
 
-def guardar_proyecto_activo(titulo, dificultad, act, barrio, interes):
+def guardar_proyecto_activo(usuario, titulo, dificultad, act, barrio, interes):
     conn = sqlite3.connect('colegio_feyalegria.db')
     c = conn.cursor()
-    c.execute('DELETE FROM proyecto_activo') 
+    c.execute('DELETE FROM proyecto_activo WHERE usuario = ?', (usuario,)) 
     c.execute('''
-        INSERT INTO proyecto_activo (id, titulo, dificultad, actividades, barrio, interes) 
-        VALUES (1, ?, ?, ?, ?, ?)
-    ''', (titulo, dificultad, act, barrio, interes))
+        INSERT INTO proyecto_activo (usuario, titulo, dificultad, actividades, barrio, interes) 
+        VALUES (?, ?, ?, ?, ?, ?)
+    ''', (usuario, titulo, dificultad, act, barrio, interes))
     conn.commit()
     conn.close()
 
-def borrar_proyecto_activo():
+def borrar_proyecto_activo(usuario):
     conn = sqlite3.connect('colegio_feyalegria.db')
     c = conn.cursor()
-    c.execute('DELETE FROM proyecto_activo')
+    c.execute('DELETE FROM proyecto_activo WHERE usuario = ?', (usuario,))
     conn.commit()
     conn.close()
+
+# --- Función para Generar PDF ---
+def generar_pdf(curso, tema, contenido):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.set_font("Arial", size=11)
+    
+    pdf.cell(200, 10, txt=f"Sesion de Aprendizaje: {curso}", ln=True, align='C')
+    pdf.cell(200, 10, txt=f"Tema: {tema}", ln=True, align='C')
+    pdf.ln(10)
+    
+    contenido_limpio = contenido.replace('**', '')
+    contenido_limpio = contenido_limpio.encode('latin-1', 'replace').decode('latin-1')
+    pdf.multi_cell(0, 8, txt=contenido_limpio)
+    return pdf.output(dest='S').encode('latin-1')
 
 inicializar_bd()
 
@@ -115,31 +135,26 @@ inicializar_bd()
 # =====================================================================
 with st.sidebar:
     st.header("📚 Mi Historial de Clases")
-    st.write("Aquí se guardan tus sesiones generadas.")
     
-    historial = obtener_historial()
+    historial = obtener_historial(usuario_actual)
     
     if len(historial) == 0:
         st.info("Aún no has guardado ninguna sesión.")
     else:
-        # Botón para eliminar TODO
-        if st.button("🗑️ Eliminar todo el historial", type="primary"):
-            borrar_historial_bd()
+        if st.button("🗑️ Eliminar todo mi historial", type="primary"):
+            borrar_historial_bd(usuario_actual)
             st.rerun() 
             
         st.divider()
         
-        # Bucle para mostrar cada sesión con su propio botón de borrar
         for sesion in historial:
-            # Desempaquetamos los 6 datos (incluyendo el ID)
             id_ses, fecha_str, grado_str, curso_str, tema_str, contenido_str = sesion
             etiqueta = f"{fecha_str} - {grado_str} - {curso_str} - {tema_str}"
             
             with st.expander(etiqueta):
                 st.write(contenido_str)
-                # BOTÓN NUEVO: Eliminar solo esta sesión (usando un key único)
                 if st.button("❌ Eliminar esta clase", key=f"borrar_{id_ses}"):
-                    borrar_sesion_bd(id_ses)
+                    borrar_sesion_bd(id_ses, usuario_actual)
                     st.rerun()
 
 # =====================================================================
@@ -147,7 +162,7 @@ with st.sidebar:
 # =====================================================================
 st.title("Asistente Educativo - Diseño de Proyecto Bimestral")
 
-proyecto_db = obtener_proyecto_activo()
+proyecto_db = obtener_proyecto_activo(usuario_actual)
 
 if proyecto_db is None:
     st.info("👋 ¡Bienvenido! Parece que iniciamos un nuevo bimestre. Configuremos el proyecto base.")
@@ -170,7 +185,7 @@ if proyecto_db is None:
         tema_manual = st.text_input("Escribe el título de tu Proyecto Bimestral:")
         if st.button("Guardar Proyecto y Comenzar Bimestre"):
             if tema_manual:
-                guardar_proyecto_activo(tema_manual, dificultad, actividades, barrio, interes)
+                guardar_proyecto_activo(usuario_actual, tema_manual, dificultad, actividades, barrio, interes)
                 st.rerun() 
             else:
                 st.warning("Por favor, escribe un tema.")
@@ -188,7 +203,7 @@ if proyecto_db is None:
             tema_elegido = st.text_input("Copia y pega aquí el título del proyecto que elegiste:")
             if st.button("Confirmar Selección y Comenzar Bimestre"):
                 if tema_elegido:
-                    guardar_proyecto_activo(tema_elegido, dificultad, actividades, barrio, interes)
+                    guardar_proyecto_activo(usuario_actual, tema_elegido, dificultad, actividades, barrio, interes)
                     st.rerun() 
 
 else:
@@ -198,30 +213,24 @@ else:
     st.success(f"🚀 **Proyecto Bimestral Activo:** {titulo_proy}")
     
     if st.button("⚠️ Terminar Bimestre y Crear Nuevo Proyecto"):
-        borrar_proyecto_activo()
+        borrar_proyecto_activo(usuario_actual)
         st.rerun()
         
     st.divider()
 
-# --- PASO 3: SESIÓN DE CLASE CON GUARDADO ---
     st.subheader("Paso 3: Diseño de la Sesión de Clase (Diaria)")
 
-    # 1. Empaquetamos los cursos en un diccionario para poder seleccionarlos
     cursos_disponibles = {
         "Matemática": matematica,
         "Educación Religiosa": religion,
         "Comunicación": comunicacion
     }
     
-    # 2. El usuario primero elige el CURSO
     curso_seleccionado = st.selectbox("1. Selecciona el Curso:", list(cursos_disponibles.keys()))
-    
-    # 3. Extraemos la data solo del curso que eligió
     data_curso = cursos_disponibles[curso_seleccionado]
     
     st.write(f"**Grado:** {data_curso['grado']}")
     
-    # 4. Los menús de abajo ahora se alimentan de 'data_curso'
     nombres_competencias = [comp["nombre"] for comp in data_curso["competencias"]]
     competencia_elegida = st.selectbox("2. Selecciona la Competencia a trabajar hoy:", nombres_competencias)
     
@@ -257,17 +266,35 @@ else:
                 respuesta_sesion = modelo.generate_content(prompt_sesion)
                 st.session_state['sesion_actual'] = respuesta_sesion.text
                 st.session_state['tema_actual'] = tema_sesion
-                st.session_state['curso_actual_guardado'] = data_curso['curso'] # Guardamos el curso para la BD
+                st.session_state['curso_actual_guardado'] = data_curso['curso']
 
     if 'sesion_actual' in st.session_state:
         st.markdown("### 📝 Tu Sesión de Clase Generada")
         st.info(st.session_state['sesion_actual'])
         
-        if st.button("💾 Guardar esta Sesión en mi Historial"):
-            guardar_sesion_bd(
-                grado=data_curso['grado'], 
-                curso=st.session_state.get('curso_actual_guardado', data_curso['curso']), 
-                tema=st.session_state.get('tema_actual', 'Tema sin nombre'), 
+        col_btn1, col_btn2 = st.columns(2)
+        
+        with col_btn1:
+            if st.button("💾 Guardar esta Sesión en mi Historial"):
+                guardar_sesion_bd(
+                    usuario=usuario_actual, # AHORA GUARDAMOS CON EL NOMBRE DE USUARIO
+                    grado=data_curso['grado'], 
+                    curso=st.session_state.get('curso_actual_guardado', data_curso['curso']), 
+                    tema=st.session_state.get('tema_actual', 'Tema sin nombre'), 
+                    contenido=st.session_state['sesion_actual']
+                )
+                st.success("✅ ¡Sesión guardada correctamente! Revisa el menú lateral izquierdo.")
+                
+        with col_btn2:
+            pdf_bytes = generar_pdf(
+                curso=st.session_state.get('curso_actual_guardado', data_curso['curso']),
+                tema=st.session_state.get('tema_actual', 'Tema sin nombre'),
                 contenido=st.session_state['sesion_actual']
             )
-            st.success("✅ ¡Sesión guardada correctamente! Revisa el menú lateral izquierdo.")
+            
+            st.download_button(
+                label="📄 Descargar como PDF",
+                data=pdf_bytes,
+                file_name=f"Sesion_{st.session_state.get('tema_actual', 'Clase')}.pdf",
+                mime="application/pdf"
+            )
