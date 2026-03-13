@@ -5,7 +5,7 @@ import sqlite3
 from datetime import datetime
 from dotenv import load_dotenv
 
-from curriculo_5to import matematica, religion
+from curriculo_5to import matematica, religion, comunicacion
 
 
 # =====================================================================
@@ -195,7 +195,8 @@ else:
     # 1. Empaquetamos los cursos en un diccionario para poder seleccionarlos
     cursos_disponibles = {
         "Matemática": matematica,
-        "Educación Religiosa": religion
+        "Educación Religiosa": religion,
+        "Comunicación": comunicacion
     }
     
     # 2. El usuario primero elige el CURSO

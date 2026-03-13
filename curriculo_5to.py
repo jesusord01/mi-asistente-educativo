@@ -68,3 +68,41 @@ religion = {
     ]
 }
 
+
+comunicacion= { 
+    "grado": "5to grado de primaria",
+    "curso": "Comunicación",
+    "competencias": [
+        {
+            "nombre": "Lee diversos tipos de textos escritos",
+            "descripcion": "Esta competencia supone un proceso dinámico de interacción entre el lector, el texto y los contextos socioculturales para construir un sentido, donde el estudiante decodifica, comprende la información, interpreta y establece una postura.",
+            "capacidades": [
+                "Obtiene información del texto escrito.",
+                "Infiere e interpreta información del texto escrito.",
+                "Reflexiona y evalúa la forma, el contenido y contexto del texto escrito."
+            ]
+        },
+        {
+            "nombre": "Escribe diversos tipos de textos",
+            "descripcion": "Se define como el uso del lenguaje escrito para construir sentidos en el texto y comunicarlos a otros, lo que implica un proceso reflexivo de adecuación, organización y revisión permanente de lo escrito para mejorarlo.",
+            "capacidades": [
+                "Adecúa el texto a la situación comunicativa.",
+                "Organiza y desarrolla las ideas de forma coherente y cohesionada.",
+                "Utiliza convenciones del lenguaje escrito de forma pertinente.",
+                "Reflexiona y evalúa la forma, el contenido y contexto del texto escrito."
+            ]
+        },
+        {
+            "nombre": "Se comunica oralmente",
+            "descripcion": "Consiste en una interacción dinámica entre uno o más interlocutores para expresar y comprender ideas y emociones, alternando los roles de hablante y oyente para lograr un propósito comunicativo.",
+            "capacidades": [
+                "Obtiene información del texto oral.",
+                "Infiere e interpreta información del texto oral.",
+                "Adecúa, organiza y desarrolla el texto de forma coherente y cohesionada.",
+                "Utiliza recursos no verbales y paraverbales de forma estratégica.",
+                "Interactúa estratégicamente con distintos interlocutores.",
+                "Reflexiona y evalúa la forma, el contenido y contexto del texto oral."
+            ]
+        }
+    ]
+}
