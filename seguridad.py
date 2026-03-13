@@ -8,15 +8,12 @@ load_dotenv()
 def verificar_contrasena():
     """Retorna True si el usuario ingresó correctamente, False si no."""
     
-    # 1. Creamos la memoria de la sesión si no existe
     if 'autenticado' not in st.session_state:
         st.session_state['autenticado'] = False
 
-    # 2. Si ya entró antes, lo dejamos pasar de frente
     if st.session_state['autenticado']:
         return True
 
-    # 3. Si no ha entrado, le mostramos el formulario
     st.title("🔒 Acceso Restringido")
     st.write("Por favor, ingresa tus credenciales para usar el asistente.")
     
@@ -24,12 +21,18 @@ def verificar_contrasena():
     contrasena = st.text_input("Contraseña", type="password")
     
     if st.button("Ingresar"):
-        # Comparamos lo que escribió con lo que está en el .env
-        if usuario == os.getenv("USUARIO_APP") and contrasena == os.getenv("PASSWORD_APP"):
+        # 1. Agrupamos los usuarios y contraseñas del .env en un diccionario
+        usuarios_validos = {
+            os.getenv("USUARIO_1"): os.getenv("PASSWORD_1"),
+            os.getenv("USUARIO_2"): os.getenv("PASSWORD_2"),
+            os.getenv("USUARIO_3"): os.getenv("PASSWORD_3")
+        }
+        
+        # 2. Verificamos si el usuario escrito existe en el diccionario Y si su clave coincide
+        if usuario in usuarios_validos and usuarios_validos[usuario] == contrasena:
             st.session_state['autenticado'] = True
-            st.rerun() # Recargamos la página para que desaparezca el login
+            st.rerun() 
         else:
             st.error("❌ Usuario o contraseña incorrectos")
             
-    # Retorna False mientras no ponga la clave correcta
     return False
