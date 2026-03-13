@@ -6,6 +6,20 @@ from datetime import datetime
 from dotenv import load_dotenv
 
 from curriculo_5to import matematica, religion, comunicacion
+from seguridad import verificar_contrasena # <-- IMPORTAMOS TU NUEVO ARCHIVO
+
+# =====================================================================
+# PORTERO LÓGICO (LOGIN)
+# =====================================================================
+# Si la contraseña no es correcta, detenemos toda la aplicación aquí mismo
+if not verificar_contrasena():
+    st.stop() 
+
+# Botón opcional para cerrar sesión (lo ponemos arriba de todo)
+with st.sidebar:
+    if st.button("🚪 Cerrar Sesión"):
+        st.session_state['autenticado'] = False
+        st.rerun()
 
 
 # =====================================================================
