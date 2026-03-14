@@ -35,7 +35,18 @@ modelo = genai.GenerativeModel('gemini-2.5-flash')
 def inicializar_bd():
     conn = sqlite3.connect('colegio_feyalegria.db')
     c = conn.cursor()
-    # NUEVO: Agregamos la columna 'usuario' a las sesiones
+    
+    # --- TRUCO PARA ACTUALIZAR LA BASE DE DATOS EN LA NUBE ---
+    # Intentamos buscar la columna 'usuario'
+    try:
+        c.execute("SELECT usuario FROM sesiones LIMIT 1")
+    except sqlite3.OperationalError:
+        # Si da error, significa que es la base de datos vieja. ¡La destruimos para renovarla!
+        c.execute("DROP TABLE IF EXISTS sesiones")
+        c.execute("DROP TABLE IF EXISTS proyecto_activo")
+    # ---------------------------------------------------------
+
+    # Ahora sí, creamos las tablas con la estructura multiusuario
     c.execute('''
         CREATE TABLE IF NOT EXISTS sesiones (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -43,7 +54,7 @@ def inicializar_bd():
             fecha TEXT, grado TEXT, curso TEXT, tema TEXT, contenido TEXT
         )
     ''')
-    # NUEVO: La clave principal ahora es el 'usuario', permitiendo 1 proyecto por profesor
+    
     c.execute('''
         CREATE TABLE IF NOT EXISTS proyecto_activo (
             usuario TEXT PRIMARY KEY,
